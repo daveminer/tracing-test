@@ -58,12 +58,17 @@ pub fn traced_test(attr: TokenStream, item: TokenStream) -> TokenStream {
 
     let args = parse_macro_input!(attr as AttributeArgs);
     let mut trace_crates: String = "".into();
-
-    for arg in args {
-        trace_crates.push_str(&format!(
-            ",{}=trace",
-            arg.to_token_stream().to_string().replace("\"", "")
-        ));
+    if !trace_crates.is_empty() {
+        trace_crates = args
+            .iter()
+            .map(|arg| {
+                format!(
+                    "{}=trace",
+                    arg.to_token_stream().to_string().replace("\"", "")
+                )
+            })
+            .collect::<Vec<String>>()
+            .join(",");
     }
 
     // Determine features
@@ -77,7 +82,9 @@ pub fn traced_test(attr: TokenStream, item: TokenStream) -> TokenStream {
     let init = parse::<Stmt>(
         quote! {
             tracing_test::internal::INITIALIZED.call_once(|| {
-                let env_filter = if #no_env_filter && #trace_crates.is_empty() {
+                let env_filter = if #trace_crates.is_empty() {
+                    #trace_crates.to_string()
+                } else if #no_env_filter {
                     "trace".to_string()
                 } else {
                     let crate_name = module_path!()
@@ -86,7 +93,7 @@ pub fn traced_test(attr: TokenStream, item: TokenStream) -> TokenStream {
                         .expect("Could not find crate name in module path")
                         .to_string();
 
-                    format!("{}=trace{}", crate_name, #trace_crates)
+                    format!("{}=trace", crate_name)
                 };
                 let mock_writer = tracing_test::internal::MockWriter::new(&tracing_test::internal::GLOBAL_BUF);
                 let subscriber = tracing_test::internal::get_subscriber(mock_writer, &env_filter);
