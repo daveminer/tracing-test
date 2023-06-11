@@ -82,7 +82,7 @@ pub fn traced_test(attr: TokenStream, item: TokenStream) -> TokenStream {
     let init = parse::<Stmt>(
         quote! {
             tracing_test::internal::INITIALIZED.call_once(|| {
-                let env_filter = if #trace_crates.is_empty() {
+                let env_filter = if !#trace_crates.is_empty() {
                     #trace_crates.to_string()
                 } else if #no_env_filter {
                     "trace".to_string()
